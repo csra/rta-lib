@@ -16,6 +16,7 @@
  */
 package de.citec.csra.allocation.cli;
 
+import static de.citec.csra.allocation.cli.ExecutableResource.Completion.EXPIRE;
 import de.citec.csra.rst.util.IntervalUtils;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
@@ -38,7 +39,6 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.RELEASED;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.REQUESTED;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.SCHEDULED;
-import static de.citec.csra.allocation.cli.ExecutableResource.Completion.EXPIRE;
 
 /**
  *
@@ -54,7 +54,8 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 	}
 
 	private final static Logger LOG = Logger.getLogger(ExecutableResource.class.getName());
-	private final ExecutorService executor = Executors.newSingleThreadExecutor();
+	private final ExecutorService executor;
+	private boolean externalExecutor = true;
 	private final Completion completion;
 	private final RemoteAllocation remote;
 	private Future<T> result;
@@ -64,11 +65,22 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 	}
 
 	public ExecutableResource(ResourceAllocation allocation, Completion completion) {
+		this(allocation, completion, Executors.newSingleThreadExecutor());
+		this.externalExecutor = false;
+	}
+	
+	public ExecutableResource(ResourceAllocation allocation, Completion completion, ExecutorService executor) {
 		this.remote = new RemoteAllocation(ResourceAllocation.newBuilder(allocation));
 		this.completion = completion;
+		this.executor = executor;
 	}
 
 	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, Completion completion, String... resources) {
+		this(description, policy, priority, initiator, delay, duration, completion, Executors.newSingleThreadExecutor(), resources);
+		this.externalExecutor = false;
+	}
+	
+	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, Completion completion, ExecutorService executor, String... resources) {
 		this.remote = new RemoteAllocation(ResourceAllocation.newBuilder().
 				setInitiator(initiator).
 				setPolicy(policy).
@@ -77,6 +89,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 				setSlot(IntervalUtils.buildRelativeRst(delay, duration)).
 				addAllResourceIds(Arrays.asList(resources)));
 		this.completion = completion;
+		this.executor = executor;
 	}
 
 	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, String... resources) {
@@ -89,8 +102,10 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 		}
 		try {
 			remote.removeSchedulerListener(this);
-			executor.shutdown();
-			executor.awaitTermination(5000, TimeUnit.MILLISECONDS);
+			if(!externalExecutor) {
+				executor.shutdown();
+				executor.awaitTermination(5000, TimeUnit.MILLISECONDS);
+			}
 		} catch (InterruptedException x) {
 			LOG.log(Level.SEVERE, "Interrupted during executor shutdown", x);
 			Thread.currentThread().interrupt();
