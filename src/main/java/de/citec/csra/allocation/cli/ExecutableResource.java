@@ -68,7 +68,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 		this(allocation, completion, Executors.newSingleThreadExecutor());
 		this.externalExecutor = false;
 	}
-	
+
 	public ExecutableResource(ResourceAllocation allocation, Completion completion, ExecutorService executor) {
 		this.remote = new RemoteAllocation(ResourceAllocation.newBuilder(allocation));
 		this.completion = completion;
@@ -79,7 +79,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 		this(description, policy, priority, initiator, delay, duration, completion, Executors.newSingleThreadExecutor(), resources);
 		this.externalExecutor = false;
 	}
-	
+
 	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, Completion completion, ExecutorService executor, String... resources) {
 		this.remote = new RemoteAllocation(ResourceAllocation.newBuilder().
 				setInitiator(initiator).
@@ -102,7 +102,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 		}
 		try {
 			remote.removeSchedulerListener(this);
-			if(!externalExecutor) {
+			if (!externalExecutor) {
 				executor.shutdown();
 				executor.awaitTermination(5000, TimeUnit.MILLISECONDS);
 			}
@@ -170,25 +170,26 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 			LOG.log(Level.FINE, "Starting user code execution for {0}ms.", this.remote.getRemainingTime());
 			res = execute();
 			LOG.log(Level.FINE, "User code execution returned with ''{0}''", res);
-			switch (completion) {
-				case MONITOR:
-					synchronized (this) {
+			synchronized (this) {
+				switch (completion) {
+					case MONITOR:
 						long time;
 						while ((time = this.remote.getRemainingTime()) > 0 && !Thread.interrupted()) {
-							LOG.log(Level.FINER, "blocking for {0}ms.", time);
+							LOG.log(Level.FINER, "Blocking resource for {0}ms.", time);
 							this.wait(time);
 						}
-					}
 //					no break -> release resource after waiting
-				case EXPIRE:
-					try {
-						this.remote.release();
-					} catch (RSBException ex) {
-						LOG.log(Level.WARNING, "Could not release resources at server", ex);
-					}
-					break;
-				case RETAIN:
-					break;
+					case EXPIRE:
+						try {
+							LOG.log(Level.FINER, "Releasing resource now.");
+							this.remote.release();
+						} catch (RSBException ex) {
+							LOG.log(Level.WARNING, "Could not release resources at server", ex);
+						}
+						break;
+					case RETAIN:
+						break;
+				}
 			}
 		} catch (ExecutionException ex) {
 			LOG.log(Level.WARNING, "User code execution failed, aborting allocation at server", ex);
@@ -198,7 +199,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 				LOG.log(Level.WARNING, "Could not abort resource allocation at server", ex1);
 			}
 		} catch (InterruptedException ex) {
-			LOG.log(Level.FINER, "User code interrupted, aborting allocation at server");
+			LOG.log(Level.WARNING, "User code interrupted, aborting allocation at server");
 			try {
 				this.remote.abort();
 			} catch (RSBException ex1) {
@@ -221,20 +222,24 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 	public void allocationUpdated(ResourceAllocation allocation) {
 		synchronized (this) {
 			this.notifyAll();
-		}
-		switch (allocation.getState()) {
-			case SCHEDULED:
-				break;
-			case ALLOCATED:
-				break;
-			case REJECTED:
-			case CANCELLED:
-				terminateExecution(false);
-				break;
-			case ABORTED:
-			case RELEASED:
-				terminateExecution(true);
-				break;
+
+			switch (allocation.getState()) {
+				case SCHEDULED:
+				case ALLOCATED:
+					break;
+				case REJECTED:
+				case CANCELLED:
+				case ABORTED:
+				case RELEASED:
+					if (!allocation.getState().equals(remote.getCurrentState())) {
+						try {
+							shutdown();
+						} catch (RSBException ex) {
+							Logger.getLogger(ExecutableResource.class.getName()).log(Level.SEVERE, null, ex);
+						}
+						break;
+					}
+			}
 		}
 	}
 
