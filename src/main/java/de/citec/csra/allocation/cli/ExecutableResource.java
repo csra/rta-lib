@@ -98,6 +98,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 
 	private void terminateExecution(boolean interrupt) {
 		if (result != null && !result.isDone()) {
+			LOG.log(Level.FINE, "Cancelling user code execution {0}", interrupt ? "using an interrupt signal" : "");
 			result.cancel(interrupt);
 		}
 		try {
@@ -125,21 +126,19 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 			case REQUESTED:
 			case SCHEDULED:
 				remote.cancel();
-				terminateExecution(false);
 				break;
 			case ALLOCATED:
 				remote.abort();
-				terminateExecution(true);
 				break;
 			default:
-				LOG.log(Level.WARNING, "Shutdown called in inactive state");
-				terminateExecution(false);
+				LOG.log(Level.WARNING, "Shutdown called in inactive state, interrupting execution.");
+				terminateExecution(true);
 				break;
 		}
 	}
 
 	@Override
-	public T call() {
+	public T call() throws ExecutionException, InterruptedException {
 		synchronized (this) {
 			try {
 				awaitStart:
@@ -159,9 +158,8 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 					}
 				}
 			} catch (InterruptedException ex) {
-				LOG.log(Level.SEVERE, "Startup interrupted in state " + this.remote.getCurrentState(), ex);
-				Thread.interrupted();
-				return null;
+				LOG.log(Level.FINE, "Startup interrupted in state " + this.remote.getCurrentState(), ex);
+				throw ex;
 			}
 		}
 
@@ -192,19 +190,21 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 				}
 			}
 		} catch (ExecutionException ex) {
-			LOG.log(Level.WARNING, "User code execution failed, aborting allocation at server", ex);
+			LOG.log(Level.FINER, "User code execution failed ({0}), aborting allocation at server", ex.getMessage());
 			try {
 				this.remote.abort();
 			} catch (RSBException ex1) {
 				LOG.log(Level.WARNING, "Could not abort resource allocation at server", ex1);
 			}
+			throw ex;
 		} catch (InterruptedException ex) {
-			LOG.log(Level.WARNING, "User code interrupted, aborting allocation at server");
+			LOG.log(Level.FINER, "User code interrupted, aborting allocation at server");
 			try {
 				this.remote.abort();
 			} catch (RSBException ex1) {
 				LOG.log(Level.WARNING, "Could not abort resource allocation at server", ex1);
 			}
+			throw ex;
 		}
 		return res;
 
@@ -222,23 +222,18 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 	public void allocationUpdated(ResourceAllocation allocation) {
 		synchronized (this) {
 			this.notifyAll();
-
 			switch (allocation.getState()) {
 				case SCHEDULED:
 				case ALLOCATED:
 					break;
 				case REJECTED:
 				case CANCELLED:
+					terminateExecution(false);
+					break;
 				case ABORTED:
 				case RELEASED:
-					if (!allocation.getState().equals(remote.getCurrentState())) {
-						try {
-							shutdown();
-						} catch (RSBException ex) {
-							Logger.getLogger(ExecutableResource.class.getName()).log(Level.SEVERE, null, ex);
-						}
-						break;
-					}
+					terminateExecution(true);
+					break;
 			}
 		}
 	}
