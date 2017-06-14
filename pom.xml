@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>de.citec.csra</groupId>
 	<artifactId>rta-lib</artifactId>
-	<version>1.2-SNAPSHOT</version>
+	<version>1.2.0</version>
 	<packaging>jar</packaging>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -11,7 +11,7 @@
 		<maven.compiler.target>1.8</maven.compiler.target>
 		<netbeans.hint.license>gpl30</netbeans.hint.license>
 		<rsx.version>[0.15.0,0.16-SNAPSHOT)</rsx.version>
-		<rsu.version>[0.2.0,)</rsu.version>
+		<rsu.version>[0.2.1,)</rsu.version>
 	</properties>
 	<repositories>
 		<repository>
