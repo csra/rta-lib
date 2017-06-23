@@ -105,6 +105,7 @@ public class RemoteTask<T> implements Callable, TaskListener {
 								case ABORT_FAILED:
 								case ACCEPTED:
 								case RESULT_AVAILABLE:
+								case UPDATE:
 									break;
 //								success:
 								case COMPLETED:
@@ -115,8 +116,7 @@ public class RemoteTask<T> implements Callable, TaskListener {
 								case UPDATE_REJECTED:
 									throw new RuntimeException("Task at '" + scope + "' ended abnormally (" + state + "): " + proxy.getPayload());
 //								illegal states:
-								case ABORT: //should only be sent by client.
-								case UPDATE: //should only be sent by client.
+								case ABORT: //should only be sent by initiator.
 								case INITIATED: //already accepted, doesn't make sense here.
 									this.proxy.update(ABORT);
 									deactivate();
