@@ -198,7 +198,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 						long time;
 						while ((time = this.remote.getRemainingTime()) > 0 && !Thread.interrupted()) {
 							LOG.log(Level.FINER, "Blocking resource for {0} microseconds.", time);
-							this.wait(time / 1000, (int) ((time % 1000) / 1000));
+							this.wait(time / 1000, (int) ((time % 1000) * 1000));
 						}
 //					no break -> release resource after waiting
 					case EXPIRE:
