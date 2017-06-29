@@ -16,25 +16,21 @@
  */
 package de.citec.csra.allocation.cli;
 
+import java.util.concurrent.TimeUnit;
 import rsb.RSBException;
 
 /**
  *
  * @author Patrick Holthaus
  */
-@Deprecated
-public interface Adjustable {
+public interface TimeAdjustable {
 	
-	@Deprecated
-	public void shift(long amount) throws RSBException;
+	public void shift(long amount, TimeUnit unit) throws RSBException;
 	
-	@Deprecated
-	public void shiftTo(long timestamp) throws RSBException;
+	public void shiftTo(long timestamp, TimeUnit unit) throws RSBException;
 	
-	@Deprecated
-	public void extend(long amount) throws RSBException;
+	public void extend(long amount, TimeUnit unit) throws RSBException;
 	
-	@Deprecated
-	public void extendTo(long timestamp) throws RSBException;
+	public void extendTo(long timestamp, TimeUnit unit) throws RSBException;
 	
 }

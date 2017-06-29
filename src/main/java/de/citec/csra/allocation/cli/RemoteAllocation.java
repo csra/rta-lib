@@ -16,14 +16,16 @@
  */
 package de.citec.csra.allocation.cli;
 
-import de.citec.csra.rst.util.IntervalUtils;
 import static de.citec.csra.allocation.cli.RemoteAllocationService.TIMEOUT;
-import de.citec.csra.rst.util.StringRepresentation;
-import java.util.Arrays;
+import static de.citec.csra.rst.util.IntervalUtils.buildRst;
+import static de.citec.csra.rst.util.IntervalUtils.currentTimeInMicros;
+import static de.citec.csra.rst.util.StringRepresentation.shortString;
 import java.util.HashSet;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import static java.util.concurrent.TimeUnit.MICROSECONDS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import rsb.RSBException;
@@ -38,7 +40,7 @@ import rst.timing.IntervalType.Interval;
  * @author Patrick Holthaus
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
-public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListener, TimedState {
+public class RemoteAllocation implements Schedulable, Adjustable, TimeAdjustable, SchedulerListener, TimedState {
 
 	private final static Logger LOG = Logger.getLogger(RemoteAllocation.class.getName());
 
@@ -138,7 +140,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 			case REQUESTED:
 			case SCHEDULED:
 			case ALLOCATED:
-				return Math.max(0, this.allocation.getSlot().getEnd().getTime() - System.currentTimeMillis());
+				return Math.max(0, this.allocation.getSlot().getEnd().getTime() - currentTimeInMicros());
 			case ABORTED:
 			case CANCELLED:
 			case REJECTED:
@@ -251,7 +253,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 											TIMEOUT,
 											allocation.getState(),
 											newState,
-											shutdown.toString().replaceAll("\n", " ")});
+											shortString(shutdown)});
 								allocationUpdated(shutdown);
 							}
 						}
@@ -263,15 +265,15 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 				LOG.log(Level.FINE,
 						"attempting client allocation slot change ''{0}'' -> ''{1}'' ({2})",
 						new Object[]{
-							allocation.getSlot().toString().replaceAll("\n", " "),
-							interval.toString().replaceAll("\n", " "),
-							request.toString().replaceAll("\n", " ")});
+							shortString(allocation.getSlot()),
+							shortString(interval),
+							shortString(request)});
 				this.remoteService.update(request);
 			}
 		} else {
 			LOG.log(Level.FINE,
 					"resource allocation not active anymore ({0}), skipping client allocation slot change ({1}) for: ''{2}''",
-					new Object[]{allocation.getState(), interval.toString().replaceAll("\n", " "), allocation.toString().replaceAll("\n", " ")});
+					new Object[]{allocation.getState(), shortString(interval), shortString(allocation)});
 		}
 	}
 
@@ -310,7 +312,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 							new Object[]{
 								allocation.getState(),
 								newState,
-								request.toString().replaceAll("\n", " ")});
+								shortString(request)});
 					this.remoteService.update(request);
 					break;
 				case REJECTED:
@@ -325,7 +327,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 		} else {
 			LOG.log(Level.FINE,
 					"resource allocation not active anymore ({0}), skipping client allocation state change ({1}) for: ''{2}''",
-					new Object[]{allocation.getState(), newState, allocation.toString().replaceAll("\n", " ")});
+					new Object[]{allocation.getState(), newState, shortString(allocation)});
 		}
 	}
 
@@ -336,7 +338,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 				new Object[]{
 					this.allocation.getState(),
 					update.getState(),
-					update.toString().replaceAll("\n", " ")});
+					shortString(update)});
 		this.allocation = update;
 
 		synchronized (this.monitor) {
@@ -362,37 +364,59 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 
 	@Override
 	public String toString() {
-		return getClass().getSimpleName()
-				+ ((this.allocation == null)
-						? ""
-						: "[" + this.allocation.toString().replaceAll("\n", " ") + "]");
+		return getClass().getSimpleName() + "[" + shortString(allocation) + "]";
 	}
 
 	@Override
-	public void shift(long amount) throws RSBException {
+	public void shift(long amount, TimeUnit unit) throws RSBException {
+		amount = MICROSECONDS.convert(amount, unit);
 		long newBegin = this.allocation.getSlot().getBegin().getTime() + amount;
 		long newEnd = this.allocation.getSlot().getEnd().getTime() + amount;
-		requestSlot(IntervalUtils.buildRst(newBegin, newEnd));
+		requestSlot(buildRst(newBegin, newEnd, MICROSECONDS));
 	}
 
 	@Override
-	public void shiftTo(long timestamp) throws RSBException {
-		long newBegin = timestamp;
+	public void shiftTo(long timestamp, TimeUnit unit) throws RSBException {
+		long newBegin = MICROSECONDS.convert(timestamp, unit);
 		long newEnd = newBegin + this.allocation.getSlot().getEnd().getTime() - this.allocation.getSlot().getBegin().getTime();
-		requestSlot(IntervalUtils.buildRst(newBegin, newEnd));
+		requestSlot(buildRst(newBegin, newEnd, MICROSECONDS));
 	}
 
 	@Override
+	public void extend(long amount, TimeUnit unit) throws RSBException {
+		long newBegin = this.allocation.getSlot().getBegin().getTime();
+		long newEnd = this.allocation.getSlot().getEnd().getTime() + MICROSECONDS.convert(amount, unit);
+		requestSlot(buildRst(newBegin, newEnd, MICROSECONDS));
+	}
+
+	@Override
+	public void extendTo(long timestamp, TimeUnit unit) throws RSBException {
+		long newBegin = this.allocation.getSlot().getBegin().getTime();
+		long newEnd = MICROSECONDS.convert(timestamp, unit);
+		requestSlot(buildRst(newBegin, newEnd, MICROSECONDS));
+	}
+	
+	@Override
+	@Deprecated
+	public void shift(long amount) throws RSBException {
+		shift(amount, MILLISECONDS);
+	}
+
+	@Override
+	@Deprecated
+	public void shiftTo(long timestamp) throws RSBException {
+		shiftTo(timestamp, MILLISECONDS);
+	}
+
+	@Override
+	@Deprecated
 	public void extend(long amount) throws RSBException {
-		long newBegin = this.allocation.getSlot().getBegin().getTime();
-		long newEnd = this.allocation.getSlot().getEnd().getTime() + amount;
-		requestSlot(IntervalUtils.buildRst(newBegin, newEnd));
+		extend(amount, MILLISECONDS);
 	}
 
 	@Override
+	@Deprecated
 	public void extendTo(long timestamp) throws RSBException {
-		long newBegin = this.allocation.getSlot().getBegin().getTime();
-		long newEnd = timestamp;
-		requestSlot(IntervalUtils.buildRst(newBegin, newEnd));
+		extendTo(timestamp, MILLISECONDS);
 	}
 }

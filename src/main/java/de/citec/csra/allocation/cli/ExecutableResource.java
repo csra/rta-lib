@@ -74,12 +74,35 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 		this.completion = completion;
 		this.executor = executor;
 	}
+		
+	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, TimeUnit unit, Completion completion, String... resources) {
+		this(description, policy, priority, initiator, delay, duration, unit, completion, Executors.newSingleThreadExecutor(), resources);
+		this.externalExecutor = false;
+	}
 
+	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, TimeUnit unit, Completion completion, ExecutorService executor, String... resources) {
+		this.remote = new RemoteAllocation(ResourceAllocation.newBuilder().
+				setInitiator(initiator).
+				setPolicy(policy).
+				setPriority(priority).
+				setDescription(description).
+				setSlot(IntervalUtils.buildRelativeRst(delay, duration, unit)).
+				addAllResourceIds(Arrays.asList(resources)));
+		this.completion = completion;
+		this.executor = executor;
+	}
+
+	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, TimeUnit unit, String... resources) {
+		this(description, policy, priority, initiator, delay, duration, unit, EXPIRE, resources);
+	}
+	
+	@Deprecated
 	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, Completion completion, String... resources) {
 		this(description, policy, priority, initiator, delay, duration, completion, Executors.newSingleThreadExecutor(), resources);
 		this.externalExecutor = false;
 	}
 
+	@Deprecated
 	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, Completion completion, ExecutorService executor, String... resources) {
 		this.remote = new RemoteAllocation(ResourceAllocation.newBuilder().
 				setInitiator(initiator).
@@ -92,6 +115,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 		this.executor = executor;
 	}
 
+	@Deprecated
 	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, String... resources) {
 		this(description, policy, priority, initiator, delay, duration, EXPIRE, resources);
 	}
@@ -165,7 +189,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 
 		T res = null;
 		try {
-			LOG.log(Level.FINE, "Starting user code execution for {0}ms.", this.remote.getRemainingTime());
+			LOG.log(Level.FINE, "Starting user code execution for {0} microseconds.", this.remote.getRemainingTime());
 			res = execute();
 			LOG.log(Level.FINE, "User code execution returned with ''{0}''", res);
 			synchronized (this) {
@@ -173,8 +197,8 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 					case MONITOR:
 						long time;
 						while ((time = this.remote.getRemainingTime()) > 0 && !Thread.interrupted()) {
-							LOG.log(Level.FINER, "Blocking resource for {0}ms.", time);
-							this.wait(time);
+							LOG.log(Level.FINER, "Blocking resource for {0} microseconds.", time);
+							this.wait(time / 1000, (int) ((time % 1000) / 1000));
 						}
 //					no break -> release resource after waiting
 					case EXPIRE:

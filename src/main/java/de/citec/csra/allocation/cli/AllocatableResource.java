@@ -19,6 +19,7 @@ package de.citec.csra.allocation.cli;
 import de.citec.csra.rst.util.IntervalUtils;
 import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -46,6 +47,7 @@ public class AllocatableResource implements SchedulerListener, Executable {
 		this.remote = new RemoteAllocation(ResourceAllocation.newBuilder(allocation));
 	}
 
+	@Deprecated
 	public AllocatableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, String... resources) {
 		this.remote = new RemoteAllocation(ResourceAllocation.newBuilder().
 				setInitiator(initiator).
@@ -53,6 +55,16 @@ public class AllocatableResource implements SchedulerListener, Executable {
 				setPriority(priority).
 				setDescription(description).
 				setSlot(IntervalUtils.buildRelativeRst(delay, duration)).
+				addAllResourceIds(Arrays.asList(resources)));
+	}
+	
+	public AllocatableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, TimeUnit unit, String... resources) {
+		this.remote = new RemoteAllocation(ResourceAllocation.newBuilder().
+				setInitiator(initiator).
+				setPolicy(policy).
+				setPriority(priority).
+				setDescription(description).
+				setSlot(IntervalUtils.buildRelativeRst(delay, duration, unit)).
 				addAllResourceIds(Arrays.asList(resources)));
 	}
 
