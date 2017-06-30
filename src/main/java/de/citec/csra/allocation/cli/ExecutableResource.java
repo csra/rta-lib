@@ -29,16 +29,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import rsb.RSBException;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
-import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator;
-import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy;
-import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority;
-import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.ABORTED;
-import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.ALLOCATED;
-import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.CANCELLED;
-import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.REJECTED;
-import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.RELEASED;
-import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.REQUESTED;
-import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.SCHEDULED;
+import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.*;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.*;
 
 /**
  *

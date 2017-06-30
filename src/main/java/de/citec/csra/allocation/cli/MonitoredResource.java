@@ -16,10 +16,13 @@
  */
 package de.citec.csra.allocation.cli;
 
+import static de.citec.csra.rst.util.IntervalUtils.currentTimeInMicros;
 import java.util.Arrays;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
+import static java.util.concurrent.TimeUnit.MICROSECONDS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -111,14 +114,6 @@ public class MonitoredResource implements SchedulerListener, Executable {
 		return this.queue.peekLast();
 	}
 
-	public void await(State... state) throws InterruptedException {
-		synchronized (this.monitor) {
-			while (!containsAny(state)) {
-				this.monitor.wait();
-			}
-		}
-	}
-
 	private boolean containsAny(State... states) {
 		for (State state : states) {
 			if (this.queue.contains(state)) {
@@ -127,23 +122,38 @@ public class MonitoredResource implements SchedulerListener, Executable {
 		}
 		return false;
 	}
+	
+	@Deprecated
+	public void await(State state, long timeout) throws InterruptedException, TimeoutException {
+		await(timeout, MILLISECONDS, state);
+	}
+	
 
-	public void await(long timeout, State... states) throws InterruptedException, TimeoutException {
+	public void await(State... state) throws InterruptedException {
+		synchronized (this.monitor) {
+			while (!containsAny(state)) {
+				this.monitor.wait();
+			}
+		}
+	}
+
+	public void await(long timeout, TimeUnit unit, State... states) throws InterruptedException, TimeoutException {
+		timeout = MICROSECONDS.convert(timeout, unit);
 		synchronized (this.monitor) {
 			if (containsAny(states)) {
 				return;
 			}
-			long start = System.currentTimeMillis();
+			long start = currentTimeInMicros();
 			long remaining = timeout;
 			while (remaining > 0) {
-				this.monitor.wait(remaining);
+				this.monitor.wait(remaining / 1000, (int) ((remaining % 1000) * 1000));
 				if (containsAny(states)) {
 					return;
 				} else {
-					remaining = timeout - (System.currentTimeMillis() - start);
+					remaining = timeout - (currentTimeInMicros() - start);
 				}
 			}
-			throw new TimeoutException("Waiting for states '" + Arrays.toString(states) + "' timed out after " + timeout + "ms.");
+			throw new TimeoutException("Waiting for state '" + Arrays.toString(states) + "' timed out after " + timeout + "µs.");
 		}
 	}
 

@@ -16,7 +16,6 @@
  */
 package de.citec.csra.allocation.cli;
 
-import static de.citec.csra.allocation.cli.RemoteAllocationService.TIMEOUT;
 import static de.citec.csra.rst.util.IntervalUtils.buildRst;
 import static de.citec.csra.rst.util.IntervalUtils.currentTimeInMicros;
 import static de.citec.csra.rst.util.StringRepresentation.shortString;
@@ -44,6 +43,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, TimeAdjustable
 
 	private final static Logger LOG = Logger.getLogger(RemoteAllocation.class.getName());
 
+	private final static long TIMEOUT_US = 5000000;
 	private final QueueAdapter qa;
 	private final BlockingQueue<ResourceAllocation> queue;
 	private final HashSet<SchedulerListener> listeners;
@@ -95,7 +95,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, TimeAdjustable
 		}
 		allocation = ResourceAllocation.newBuilder(allocation).setId(newId).build();
 	}
-	
+
 	public void addSchedulerListener(SchedulerListener l) {
 		synchronized (this.listeners) {
 			this.listeners.add(l);
@@ -175,14 +175,14 @@ public class RemoteAllocation implements Schedulable, Adjustable, TimeAdjustable
 		new Thread(() -> {
 			try {
 				synchronized (this.monitor) {
-					this.monitor.wait(TIMEOUT);
+					this.monitor.wait(TIMEOUT_US / 1000, (int) ((TIMEOUT_US % 1000) * 1000));
 					if (!this.inc) {
 						State newState = CANCELLED;
 						ResourceAllocation shutdown = ResourceAllocation.newBuilder(this.allocation).setState(newState).build();
 						LOG.log(Level.WARNING,
-								"client allocation request timed out after {0}ms, shutting down ''{1}'' -> ''{2}'' ({3})",
+								"client allocation request timed out after {0}µs, shutting down ''{1}'' -> ''{2}'' ({3})",
 								new Object[]{
-									TIMEOUT,
+									TIMEOUT_US,
 									allocation.getState(),
 									newState,
 									shutdown.toString().replaceAll("\n", " ")});
@@ -231,7 +231,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, TimeAdjustable
 				new Thread(() -> {
 					try {
 						synchronized (this.monitor) {
-							this.monitor.wait(TIMEOUT);
+							this.monitor.wait(TIMEOUT_US / 1000, (int) ((TIMEOUT_US % 1000) * 1000));
 							if (isAlive() && !this.inc) {
 								State newState;
 								switch (this.allocation.getState()) {
@@ -250,7 +250,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, TimeAdjustable
 								LOG.log(Level.WARNING,
 										"client slot state change timed out after {0}ms, shutting down ''{1}'' -> ''{2}'' ({3})",
 										new Object[]{
-											TIMEOUT,
+											TIMEOUT_US,
 											allocation.getState(),
 											newState,
 											shortString(shutdown)});
@@ -290,12 +290,12 @@ public class RemoteAllocation implements Schedulable, Adjustable, TimeAdjustable
 					new Thread(() -> {
 						try {
 							synchronized (this.monitor) {
-								this.monitor.wait(TIMEOUT);
+								this.monitor.wait(TIMEOUT_US / 1000, (int) ((TIMEOUT_US % 1000) * 1000));
 								if (!this.inc) {
 									LOG.log(Level.WARNING,
 											"client allocation state change timed out after {0}ms, forcing client update ''{1}'' -> ''{2}'' ({3})",
 											new Object[]{
-												TIMEOUT,
+												TIMEOUT_US,
 												allocation.getState(),
 												newState,
 												request.toString().replaceAll("\n", " ")});
@@ -395,7 +395,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, TimeAdjustable
 		long newEnd = MICROSECONDS.convert(timestamp, unit);
 		requestSlot(buildRst(newBegin, newEnd, MICROSECONDS));
 	}
-	
+
 	@Override
 	@Deprecated
 	public void shift(long amount) throws RSBException {

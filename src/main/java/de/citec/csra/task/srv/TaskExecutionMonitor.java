@@ -103,7 +103,7 @@ public class TaskExecutionMonitor implements Callable<Void>, TaskListener {
 				try {
 					executor.abort(proxy.getPayload());
 				} catch (Exception ex) {
-					Logger.getLogger(TaskExecutionMonitor.class.getName()).log(Level.SEVERE, null, ex);
+					LOG.log(Level.WARNING, "Task could not be aborted at initiator", ex);
 				}
 				service.shutdownNow();
 				break;

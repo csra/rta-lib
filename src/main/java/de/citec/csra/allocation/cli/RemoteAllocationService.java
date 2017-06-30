@@ -36,7 +36,6 @@ import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
  */
 public class RemoteAllocationService {
 
-	public final static long TIMEOUT = 5000;
 	private final static String SCOPEVAR = "SCOPE_ALLOCATION";
 	private final static String FALLBACK = "/coordination/allocation/";
 	private static String scope;

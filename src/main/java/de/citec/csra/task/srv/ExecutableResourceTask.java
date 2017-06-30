@@ -6,6 +6,7 @@
 package de.citec.csra.task.srv;
 
 import de.citec.csra.allocation.cli.ExecutableResource;
+import static de.citec.csra.rst.util.IntervalUtils.currentTimeInMicros;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -23,7 +24,7 @@ public class ExecutableResourceTask implements LocalTask {
 
 	private final static Logger LOG = Logger.getLogger(ExecutableResourceTask.class.getName());
 	private final Set<ExecutableResource> actions;
-	private final long TIMEOUT = 500;
+	private final long TIMEOUT_US = 500000;
 
 	public ExecutableResourceTask(Set<ExecutableResource> actions) throws InterruptedException, IllegalArgumentException, RuntimeException {
 		this.actions = actions;
@@ -83,15 +84,15 @@ public class ExecutableResourceTask implements LocalTask {
 			}
 		}
 
-		long start = System.currentTimeMillis();
-		long remaining = TIMEOUT;
+		long start = currentTimeInMicros();
+		long remaining = TIMEOUT_US;
 		while (remaining > 0) {
 			synchronized (monitor) {
 				if (pending.isEmpty()) {
 					return;
 				} else {
-					remaining = TIMEOUT - (System.currentTimeMillis() - start);
-					monitor.wait(remaining);
+					remaining = TIMEOUT_US - (currentTimeInMicros() - start);
+					monitor.wait(remaining / 1000, (int) ((remaining % 1000) * 1000));
 				}
 			}
 		}
