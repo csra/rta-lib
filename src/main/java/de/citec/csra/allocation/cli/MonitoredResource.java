@@ -16,33 +16,25 @@
  */
 package de.citec.csra.allocation.cli;
 
-import static de.citec.csra.rst.util.IntervalUtils.currentTimeInMicros;
 import java.util.Arrays;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
-import static java.util.concurrent.TimeUnit.MICROSECONDS;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import rsb.RSBException;
 import rsb.util.QueueAdapter;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
-import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State;
 
 /**
  *
  * @author Patrick Holthaus
  */
-public class MonitoredResource implements SchedulerListener, Executable {
+public class MonitoredResource extends AllocationMonitor implements Executable {
 
 	private final static Logger LOG = Logger.getLogger(MonitoredResource.class.getName());
 
 	private final BlockingQueue<ResourceAllocation> incoming;
 	private final QueueAdapter qa;
-	private final LinkedBlockingDeque<State> queue = new LinkedBlockingDeque<>();
-	private final Object monitor = new Object();
 	private final String[] resources;
 	private boolean alive;
 
@@ -101,60 +93,4 @@ public class MonitoredResource implements SchedulerListener, Executable {
 			LOG.log(Level.SEVERE, "Interrupted during handler removal, ignoring.", ex);
 		}
 	}
-
-	@Override
-	public void allocationUpdated(ResourceAllocation allocation) {
-		synchronized (this.monitor) {
-			this.queue.add(allocation.getState());
-			this.monitor.notifyAll();
-		}
-	}
-
-	public State getState() {
-		return this.queue.peekLast();
-	}
-
-	private boolean containsAny(State... states) {
-		for (State state : states) {
-			if (this.queue.contains(state)) {
-				return true;
-			}
-		}
-		return false;
-	}
-	
-	@Deprecated
-	public void await(State state, long timeout) throws InterruptedException, TimeoutException {
-		await(timeout, MILLISECONDS, state);
-	}
-	
-
-	public void await(State... state) throws InterruptedException {
-		synchronized (this.monitor) {
-			while (!containsAny(state)) {
-				this.monitor.wait();
-			}
-		}
-	}
-
-	public void await(long timeout, TimeUnit unit, State... states) throws InterruptedException, TimeoutException {
-		timeout = MICROSECONDS.convert(timeout, unit);
-		synchronized (this.monitor) {
-			if (containsAny(states)) {
-				return;
-			}
-			long start = currentTimeInMicros();
-			long remaining = timeout;
-			while (remaining > 0) {
-				this.monitor.wait(remaining / 1000, (int) ((remaining % 1000) * 1000));
-				if (containsAny(states)) {
-					return;
-				} else {
-					remaining = timeout - (currentTimeInMicros() - start);
-				}
-			}
-			throw new TimeoutException("Waiting for state '" + Arrays.toString(states) + "' timed out after " + timeout + "µs.");
-		}
-	}
-
 }
