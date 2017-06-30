@@ -43,7 +43,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, TimeAdjustable
 
 	private final static Logger LOG = Logger.getLogger(RemoteAllocation.class.getName());
 
-	private final static long TIMEOUT_US = 5000000;
+	private final static long TIMEOUT_US = 1000000;
 	private final QueueAdapter qa;
 	private final BlockingQueue<ResourceAllocation> queue;
 	private final HashSet<SchedulerListener> listeners;
