@@ -181,7 +181,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 
 		T res = null;
 		try {
-			LOG.log(Level.FINE, "Starting user code execution for {0} microseconds.", this.remote.getRemainingTime());
+			LOG.log(Level.FINE, "Starting user code execution for {0} µs.", this.remote.getRemainingTime());
 			res = execute();
 			LOG.log(Level.FINE, "User code execution returned with ''{0}''", res);
 			synchronized (this) {
@@ -189,7 +189,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 					case MONITOR:
 						long time;
 						while ((time = this.remote.getRemainingTime()) > 0 && !Thread.interrupted()) {
-							LOG.log(Level.FINER, "Blocking resource for {0} microseconds.", time);
+							LOG.log(Level.FINER, "Blocking resource for {0} µs.", time);
 							this.wait(time / 1000, (int) ((time % 1000) * 1000));
 						}
 //					no break -> release resource after waiting
