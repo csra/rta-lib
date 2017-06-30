@@ -75,7 +75,6 @@ public class AllocationMonitor implements SchedulerListener {
 	}
 
 	public void await(State... state) throws InterruptedException {
-		System.out.println("await!");
 		synchronized (this.monitor) {
 			while (!containsAny(state)) {
 				this.monitor.wait();
@@ -84,7 +83,6 @@ public class AllocationMonitor implements SchedulerListener {
 	}
 
 	public void await(long timeout, TimeUnit unit, State... states) throws InterruptedException, TimeoutException {
-		System.out.println("await: " + timeout);
 		timeout = MICROSECONDS.convert(timeout, unit);
 		synchronized (this.monitor) {
 			if (containsAny(states)) {
