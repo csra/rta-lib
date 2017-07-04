@@ -21,7 +21,6 @@ import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import java.util.concurrent.TimeoutException;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State;
@@ -33,65 +32,63 @@ import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State
 public class AllocationMonitor implements SchedulerListener {
 
 	private final LinkedBlockingDeque<State> queue = new LinkedBlockingDeque<>();
-	private final Object monitor = new Object();
 
 	@Override
 	public void allocationUpdated(ResourceAllocation allocation) {
-		synchronized (this.monitor) {
+		synchronized (this.queue) {
 			this.queue.add(allocation.getState());
-			this.monitor.notifyAll();
+			this.queue.notifyAll();
+		}
+	}
+
+	void addState(State state) {
+		synchronized (this.queue) {
+			this.queue.add(state);
+			this.queue.notifyAll();
 		}
 	}
 
 	public State getState() {
-		return this.queue.peekLast();
+		synchronized (this.queue) {
+			return this.queue.peekLast();
+		}
 	}
 
 	public boolean hasState(State state) {
-		return this.queue.contains(state);
+		synchronized (this.queue) {
+			return this.queue.contains(state);
+		}
 	}
 
 	private boolean containsAny(State... states) {
-		for (State state : states) {
-			if (this.queue.contains(state)) {
-				return true;
+		synchronized (this.queue) {
+			for (State state : states) {
+				if (this.queue.contains(state)) {
+					return true;
+				}
 			}
 		}
 		return false;
 	}
 
-	@Deprecated
-	public void await(State state) throws InterruptedException {
-		synchronized (this.monitor) {
-			while (!this.queue.contains(state)) {
-				this.monitor.wait();
-			}
-		}
-	}
-
-	@Deprecated
-	public void await(State state, long timeout) throws InterruptedException, TimeoutException {
-		await(timeout, MILLISECONDS, state);
-	}
-
-	public void await(State... state) throws InterruptedException {
-		synchronized (this.monitor) {
-			while (!containsAny(state)) {
-				this.monitor.wait();
+	public void await(State... states) throws InterruptedException {
+		synchronized (this.queue) {
+			while (!containsAny(states)) {
+				this.queue.wait();
 			}
 		}
 	}
 
 	public void await(long timeout, TimeUnit unit, State... states) throws InterruptedException, TimeoutException {
-		timeout = MICROSECONDS.convert(timeout, unit);
-		synchronized (this.monitor) {
+		synchronized (this.queue) {
+			timeout = MICROSECONDS.convert(timeout, unit);
 			if (containsAny(states)) {
 				return;
 			}
 			long start = currentTimeInMicros();
 			long remaining = timeout;
 			while (remaining > 0) {
-				this.monitor.wait(remaining / 1000, (int) ((remaining % 1000) * 1000));
+				this.queue.wait(remaining / 1000, (int) ((remaining % 1000) * 1000));
 				if (containsAny(states)) {
 					return;
 				} else {
