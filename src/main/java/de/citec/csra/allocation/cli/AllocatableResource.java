@@ -18,7 +18,6 @@ package de.citec.csra.allocation.cli;
 
 import de.citec.csra.rst.util.IntervalUtils;
 import java.util.Arrays;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -27,7 +26,6 @@ import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority;
-import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.REQUESTED;
 
 /**
@@ -39,7 +37,6 @@ public class AllocatableResource extends AllocationMonitor implements SchedulerL
 
 	private final static Logger LOG = Logger.getLogger(ExecutableResource.class.getName());
 	private final RemoteAllocation remote;
-	private final LinkedBlockingDeque<State> queue = new LinkedBlockingDeque<>();
 
 	public AllocatableResource(ResourceAllocation allocation) {
 		this.remote = new RemoteAllocation(ResourceAllocation.newBuilder(allocation));
@@ -68,30 +65,33 @@ public class AllocatableResource extends AllocationMonitor implements SchedulerL
 
 	@Override
 	public void startup() throws RSBException {
-		if (this.queue.isEmpty()) {
-			this.queue.add(this.remote.getCurrentState());
-			this.remote.addSchedulerListener(this);
-			this.remote.schedule();
-		} else {
-			LOG.log(Level.WARNING, "Startup called while already active ({0}), ignoring.", getState());
+		synchronized (this) {
+			if (getState() == null) {
+				this.remote.addSchedulerListener(this);
+				this.remote.schedule();
+			} else {
+				LOG.log(Level.WARNING, "Startup called while already active ({0}), ignoring.", getState());
+			}
 		}
 	}
 
 	@Override
 	public void shutdown() throws RSBException {
-		switch (getState()) {
-			case REQUESTED:
-			case SCHEDULED:
-				remote.cancel();
-				this.remote.removeSchedulerListener(this);
-				break;
-			case ALLOCATED:
-				remote.abort();
-				this.remote.removeSchedulerListener(this);
-				break;
-			default:
-				LOG.log(Level.WARNING, "Shutdown called in inactive state ({0}), ignoring.", getState());
-				break;
+		synchronized (this) {
+			switch (getState()) {
+				case REQUESTED:
+				case SCHEDULED:
+					remote.cancel();
+					this.remote.removeSchedulerListener(this);
+					break;
+				case ALLOCATED:
+					remote.abort();
+					this.remote.removeSchedulerListener(this);
+					break;
+				default:
+					LOG.log(Level.WARNING, "Shutdown called in inactive state ({0}), ignoring.", getState());
+					break;
+			}
 		}
 	}
 
