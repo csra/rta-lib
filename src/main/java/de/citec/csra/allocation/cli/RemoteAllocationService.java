@@ -63,7 +63,7 @@ public class RemoteAllocationService {
 	private final Informer informer;
 	private final Listener listener;
 
-	public static RemoteAllocationService getInstance() throws RSBException {
+	public static synchronized RemoteAllocationService getInstance() throws RSBException {
 		if (instance == null) {
 			instance = new RemoteAllocationService();
 		}
@@ -85,11 +85,15 @@ public class RemoteAllocationService {
 	}
 
 	public void addHandler(Handler handler, boolean wait) throws InterruptedException, RSBException {
-		this.listener.addHandler(handler, wait);
+		synchronized (this.listener) {
+			this.listener.addHandler(handler, wait);
+		}
 	}
 
 	public void removeHandler(Handler handler, boolean wait) throws InterruptedException, RSBException {
-		this.listener.removeHandler(handler, wait);
+		synchronized (this.listener) {
+			this.listener.removeHandler(handler, wait);
+		}
 	}
 
 	public void shutdown() throws RSBException, InterruptedException {
