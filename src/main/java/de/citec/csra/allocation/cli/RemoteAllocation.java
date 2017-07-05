@@ -155,10 +155,16 @@ public class RemoteAllocation implements Schedulable, Adjustable, TimeAdjustable
 		LOG.log(Level.FINE,
 				"resource allocation scheduled by client: ''{0}''",
 				allocation.toString().replaceAll("\n", " "));
+
+		synchronized (this.monitor) {
+			this.inc = false;
+		}
+
 		new Thread(() -> {
+			LOG.log(Level.FINER, "starting allocation-dispatcher#{0}", allocation.getId());
 			while (isAlive()) {
 				try {
-					ResourceAllocation update = queue.poll(2000, TimeUnit.MILLISECONDS);
+					ResourceAllocation update = queue.poll(TIMEOUT_US, TimeUnit.MICROSECONDS);
 					if (update != null && update.getId().equals(allocation.getId())) {
 						allocationUpdated(update);
 					}
@@ -168,11 +174,10 @@ public class RemoteAllocation implements Schedulable, Adjustable, TimeAdjustable
 					return;
 				}
 			}
-		}, "allocation-dispatcher#" + this.allocation.getId()).start();
-		synchronized (this.monitor) {
-			this.inc = false;
-		}
+		}, "allocation-dispatcher#" + allocation.getId()).start();
+
 		new Thread(() -> {
+			LOG.log(Level.FINER, "allocation-request-timeout#{0}", this.allocation.getId());
 			try {
 				synchronized (this.monitor) {
 					this.monitor.wait(TIMEOUT_US / 1000, (int) ((TIMEOUT_US % 1000) * 1000));
@@ -190,15 +195,18 @@ public class RemoteAllocation implements Schedulable, Adjustable, TimeAdjustable
 					}
 				}
 			} catch (InterruptedException ex) {
-				LOG.log(Level.SEVERE, "Event dispatching interrupted", ex);
+				LOG.log(Level.SEVERE, "Request timeout interrupted", ex);
 				Thread.currentThread().interrupt();
 			}
 		}, "allocation-request-timeout#" + this.allocation.getId()).start();
+
 		try {
 			LOG.log(Level.FINE, "start listening to server updates");
-			this.remoteService = RemoteAllocationService.getInstance();
-			this.remoteService.addHandler(this.qa, true);
-			this.remoteService.update(this.allocation);
+			synchronized (this.monitor) {
+				this.remoteService = RemoteAllocationService.getInstance();
+				this.remoteService.addHandler(this.qa, true);
+				this.remoteService.update(this.allocation);
+			}
 		} catch (InterruptedException ex) {
 			LOG.log(Level.SEVERE, "Could not add handler, skipping remote update", ex);
 		}
@@ -339,9 +347,9 @@ public class RemoteAllocation implements Schedulable, Adjustable, TimeAdjustable
 					this.allocation.getState(),
 					update.getState(),
 					shortString(update)});
-		this.allocation = update;
 
 		synchronized (this.monitor) {
+			this.allocation = update;
 			this.inc = true;
 			this.monitor.notifyAll();
 		}
