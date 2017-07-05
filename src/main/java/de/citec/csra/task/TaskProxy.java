@@ -17,11 +17,11 @@
 package de.citec.csra.task;
 
 import com.google.protobuf.ByteString;
-import de.citec.csra.task.cli.TaskListener;
 import de.citec.csra.rst.util.SerializationService;
 import static de.citec.csra.rst.util.SerializationService.EMPTY;
 import static de.citec.csra.rst.util.SerializationService.UTF8;
 import static de.citec.csra.rst.util.StringRepresentation.shortString;
+import de.citec.csra.task.cli.TaskListener;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -210,7 +210,7 @@ public class TaskProxy {
 				}
 			}
 		} catch (RSBException ex) {
-			Logger.getLogger(TaskProxy.class.getName()).log(Level.SEVERE, "Could not publish new task state", ex);
+			LOG.log(Level.SEVERE, "Could not publish new task state", ex);
 		}
 	}
 
@@ -254,7 +254,7 @@ public class TaskProxy {
 				pl = sservice.serialize(payload);
 				ws = sservice.getSchema();
 			} catch (InitializeException ex) {
-				Logger.getLogger(TaskProxy.class.getName()).log(Level.SEVERE, null, ex);
+				LOG.log(Level.SEVERE, "Could not initialize serialization service, falling back to empty payload", ex);
 				pl = EMPTY;
 				ws = UTF8;
 			}
