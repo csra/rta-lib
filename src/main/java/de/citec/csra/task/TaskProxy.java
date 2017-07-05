@@ -210,7 +210,7 @@ public class TaskProxy {
 				}
 			}
 		} catch (RSBException ex) {
-			LOG.log(Level.SEVERE, "Could not publish new task state", ex);
+			LOG.log(Level.SEVERE, "Could not publish new task state, discarding.", ex);
 		}
 	}
 
@@ -254,7 +254,7 @@ public class TaskProxy {
 				pl = sservice.serialize(payload);
 				ws = sservice.getSchema();
 			} catch (InitializeException ex) {
-				LOG.log(Level.SEVERE, "Could not initialize serialization service, falling back to empty payload", ex);
+				LOG.log(Level.WARNING, "Could not initialize serialization service for type '"+ payload.getClass() + "', falling back to empty payload.", ex);
 				pl = EMPTY;
 				ws = UTF8;
 			}
