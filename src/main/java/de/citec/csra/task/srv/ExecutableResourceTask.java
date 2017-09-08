@@ -7,6 +7,7 @@ package de.citec.csra.task.srv;
 
 import de.citec.csra.allocation.cli.ExecutableResource;
 import static de.citec.csra.rst.util.IntervalUtils.currentTimeInMicros;
+import static de.citec.csra.rst.util.StringRepresentation.shortString;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -64,17 +65,19 @@ public class ExecutableResourceTask implements LocalTask {
 	private void schedule(Set<ExecutableResource> actions) throws InterruptedException, IllegalArgumentException, RuntimeException {
 		final Object monitor = new Object();
 		Set<ExecutableResource> pending = new HashSet<>(actions);
+		Set<ExecutableResource> rejected = new HashSet<>();
 		for (ExecutableResource r : actions) {
 			r.getRemote().addSchedulerListener((a) -> {
 				synchronized (monitor) {
 					switch (a.getState()) {
 						case REJECTED:
-							throw new IllegalArgumentException("Resource unavailable");
+							rejected.add(r);
+							LOG.log(Level.WARNING, "Resource unavailable: ''{0}''", shortString(a));
 						case SCHEDULED:
 							pending.remove(r);
-							monitor.notifyAll();
 							break;
 					}
+					monitor.notifyAll();
 				}
 			});
 			try {
@@ -83,6 +86,8 @@ public class ExecutableResourceTask implements LocalTask {
 				throw new RuntimeException(ex);
 			}
 		}
+		
+		actions.removeAll(rejected);
 
 		long start = currentTimeInMicros();
 		long remaining = TIMEOUT_US;
@@ -91,11 +96,14 @@ public class ExecutableResourceTask implements LocalTask {
 				if (pending.isEmpty()) {
 					return;
 				} else {
-					remaining = TIMEOUT_US - (currentTimeInMicros() - start);
 					monitor.wait(remaining / 1000, (int) ((remaining % 1000) * 1000));
+					remaining = TIMEOUT_US - (currentTimeInMicros() - start);
 				}
 			}
 		}
+		
+		actions.removeAll(pending);
+		
 		throw new IllegalArgumentException("Allocation service unreachable in given time.");
 	}
 }
