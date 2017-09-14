@@ -59,7 +59,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, TimeAdjustable
 
 	public RemoteAllocation(ResourceAllocation.Builder builder) {
 		if (!builder.hasId()) {
-			builder.setId(UUID.randomUUID().toString().substring(0, 12));
+			builder.setId(UUID.randomUUID().toString());
 		}
 		if (builder.hasState()) {
 			LOG.log(Level.WARNING, "Invalid initial state ''{0}'', altering to ''{1}''.", new Object[]{builder.getState(), REQUESTED});
@@ -76,7 +76,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, TimeAdjustable
 	}
 
 	public void generateToken() {
-		setToken(UUID.randomUUID().toString().substring(0, 6));
+		setToken(UUID.randomUUID().toString());
 	}
 
 	public String getToken() {
