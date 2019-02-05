@@ -10,8 +10,8 @@
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
 		<netbeans.hint.license>gpl30</netbeans.hint.license>
-		<rsx.version>[0.17.0,0.18-SNAPSHOT)</rsx.version>
-		<rsu.version>0.4.0</rsu.version>
+		<rsx.version>[0.18.0,0.19-SNAPSHOT)</rsx.version>
+		<rsu.version>0.5.0</rsu.version>
 	</properties>
 	<repositories>
 		<repository>
