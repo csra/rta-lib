@@ -10,8 +10,8 @@
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
 		<netbeans.hint.license>gpl30</netbeans.hint.license>
-		<rsx.version>[0.18.0,0.19-SNAPSHOT)</rsx.version>
-		<rsu.version>0.5.0</rsu.version>
+		<dependency.rsx.version>[0.18,0.19-alpha)</dependency.rsx.version>
+		<rsu.version>[0.5,0.6-alpha)</rsu.version>
 	</properties>
 	<repositories>
 		<repository>
@@ -29,17 +29,17 @@
 		<dependency>
 			<groupId>rsb</groupId>
 			<artifactId>rsb</artifactId>
-			<version>${rsx.version}</version>
+			<version>${dependency.rsx.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>rsb</groupId>
 			<artifactId>rst</artifactId>
-			<version>${rsx.version}</version>
+			<version>${dependency.rsx.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>rsb</groupId>
 			<artifactId>rst-sandbox</artifactId>
-			<version>${rsx.version}</version>
+			<version>${dependency.rsx.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
